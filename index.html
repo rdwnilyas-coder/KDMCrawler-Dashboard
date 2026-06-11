@@ -96,6 +96,7 @@
     <div class="tab" data-t="sentimen">😊 Sentimen</div>
     <div class="tab" data-t="stance">⚖️ Stance</div>
     <div class="tab" data-t="tokoh">👥 Tokoh</div>
+    <div class="tab" data-t="sekda">🧑‍💼 Sekda Jabar</div>
   </div>
 
   <!-- BERITA -->
@@ -293,6 +294,28 @@
         <div id="esentBar" class="chart tall"></div></div>
     </div>
   </section>
+
+  <!-- SEKDA JABAR (Herman Suryatman) -->
+  <section id="sekda">
+    <div class="panel" style="margin-bottom:14px;border-left:3px solid var(--accent)">
+      <h3 id="hmTitle">Herman Suryatman — Sekda Jawa Barat</h3>
+      <div class="desc" id="hmNote"></div>
+      <div class="cards" id="hmCards" style="margin:12px 0 0;grid-template-columns:repeat(3,1fr)"></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Artikel per Bulan</h3>
+        <div class="desc">Volume liputan per bulan</div>
+        <div id="hmMonth" class="chart"></div></div>
+      <div class="panel"><h3>Kata Kunci Judul</h3>
+        <div class="desc">Frekuensi kata pada judul artikel (antara 8 · pikiranrakyat 7)</div>
+        <div id="hmWords" class="chart"></div></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Daftar Artikel</h3>
+        <div class="desc">Klik judul untuk buka artikel</div>
+        <div style="overflow-x:auto"><table id="hmTable"></table></div></div>
+    </div>
+  </section>
 </div>
 
 <footer>
@@ -343,12 +366,12 @@ function words(id,data,color){
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null, SENT=null, STANCE=null, NER=null, ESENT=null;
+let TOPICS=null, SENT=null, STANCE=null, NER=null, ESENT=null, HERMAN=null;
 const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
 const ST_COL={pro:'#059669',netral:'#9ca3af',kontra:'#dc2626'};
-Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner','entity_sentiment'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
-.then(([ov,news,yt,com,topics,sent,stance,ner,esent])=>{
-  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner; ESENT=esent;
+Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner','entity_sentiment','herman'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent,stance,ner,esent,herman])=>{
+  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner; ESENT=esent; HERMAN=herman;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -436,6 +459,27 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment','stance
     });
     document.querySelectorAll('#nerSwitch .subtab').forEach(s=>{
       if(!NER[s.dataset.c]){s.style.opacity=.4;s.title='belum tersedia';}});
+  }
+
+  // ---- SEKDA JABAR (Herman Suryatman) ----
+  if(HERMAN){
+    const h=HERMAN;
+    document.getElementById('hmTitle').textContent=h.subject;
+    document.getElementById('hmNote').innerHTML=`${esc(h.note)} · periode <b>${h.date_range}</b>`;
+    document.getElementById('hmCards').innerHTML=[
+      [h.total,'Artikel'],[h.n_portals,'Portal'],
+      [(h.top_reporters||[]).length,'Reporter']
+    ].map(([n,l])=>`<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+    line('hmMonth',h.timeline_month);
+    words('hmWords',h.title_words);
+    document.getElementById('hmTable').innerHTML=
+      '<thead><tr><th>Tanggal</th><th>Portal</th><th>Judul</th><th>Reporter</th></tr></thead><tbody>'+
+      h.articles.map(a=>`<tr>
+        <td style="white-space:nowrap">${esc(a.tanggal.slice(0,10))}</td>
+        <td>${esc(a.portal)}</td>
+        <td><a href="${a.url}" target="_blank">${esc(a.judul)}</a>
+          ${a.deskripsi?`<div style="font-size:11px;color:var(--muted)">${esc(a.deskripsi.slice(0,120))}</div>`:''}</td>
+        <td style="white-space:nowrap">${esc(a.reporter||'-')}</td></tr>`).join('')+'</tbody>';
   }
 
   setTimeout(()=>charts.forEach(c=>c.resize()),50);
