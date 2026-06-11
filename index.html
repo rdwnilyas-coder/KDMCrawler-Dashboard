@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
   :root{
-    --bg:#0f1115; --panel:#181c24; --panel2:#1f2430; --ink:#e8eaed; --muted:#9aa3b2;
-    --accent:#f97316; --accent2:#fb923c; --line:#2a3140; --good:#34d399;
+    --bg:#f4f5f7; --panel:#ffffff; --panel2:#f7f8fa; --ink:#1f2937; --muted:#6b7280;
+    --accent:#ea580c; --accent2:#f97316; --line:#e5e7eb; --good:#059669; --bad:#dc2626;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
@@ -24,8 +24,8 @@
   .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
   .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:-30px auto 8px;position:relative;z-index:2}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
-    box-shadow:0 6px 20px rgba(0,0,0,.25)}
-  .card .n{font-size:24px;font-weight:700;color:#fff}
+    box-shadow:0 4px 14px rgba(17,24,39,.06)}
+  .card .n{font-size:24px;font-weight:700;color:var(--ink)}
   .card .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
   .tabs{display:flex;gap:8px;margin:22px 0 14px;flex-wrap:wrap}
   .tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);
@@ -36,7 +36,8 @@
   section.active{display:block}
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
   .grid.one{grid-template-columns:1fr}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+    box-shadow:0 1px 3px rgba(17,24,39,.04)}
   .panel h3{margin:0 0 4px;font-size:15px}
   .panel .desc{font-size:12px;color:var(--muted);margin-bottom:8px}
   .chart{width:100%;height:320px}
@@ -64,11 +65,11 @@
   .topic{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
     border-left:3px solid var(--accent)}
   .topic .h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
-  .topic .lab{font-weight:700;font-size:14px;color:#fff}
+  .topic .lab{font-weight:700;font-size:14px;color:var(--ink)}
   .topic .sh{color:var(--accent2);font-weight:700;font-size:14px;white-space:nowrap}
   .topic .chips{margin:8px 0 6px}
-  .chip{display:inline-block;background:#0f1115;border:1px solid var(--line);border-radius:6px;
-    padding:2px 8px;font-size:11px;color:#cbd2dd;margin:0 4px 4px 0}
+  .chip{display:inline-block;background:#f1f3f5;border:1px solid var(--line);border-radius:6px;
+    padding:2px 8px;font-size:11px;color:#374151;margin:0 4px 4px 0}
   .topic .ex{font-size:12px;color:var(--muted);border-top:1px dashed var(--line);padding-top:6px;margin-top:4px}
   @media(max-width:900px){.cards{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.tlist{grid-template-columns:1fr}}
   @media(max-width:560px){.cards{grid-template-columns:repeat(2,1fr)}header h1{font-size:21px}}
@@ -91,6 +92,7 @@
     <div class="tab" data-t="youtube">🎬 YouTube</div>
     <div class="tab" data-t="komentar">💬 Komentar</div>
     <div class="tab" data-t="topik">🧩 Topik</div>
+    <div class="tab" data-t="sentimen">😊 Sentimen</div>
   </div>
 
   <!-- BERITA -->
@@ -190,6 +192,42 @@
         <div class="tlist" id="topCards"></div></div>
     </div>
   </section>
+
+  <!-- SENTIMEN -->
+  <section id="sentimen">
+    <div class="panel" style="margin-bottom:14px">
+      <h3>Analisis Sentimen (IndoRoBERTa)</h3>
+      <div class="desc">Sentimen tingkat dokumen (positif / netral / negatif) via model
+        <code>indonesian-roberta-sentiment</code>, disilangkan dengan topik. Pilih korpus:</div>
+      <div class="subtabs" id="senSwitch">
+        <div class="subtab active" data-c="news">📰 Berita</div>
+        <div class="subtab" data-c="video_content">🎬 Konten Video</div>
+        <div class="subtab" data-c="comments">💬 Komentar</div>
+      </div>
+      <div class="desc" id="senMeta" style="margin-top:10px"></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Distribusi Sentimen</h3>
+        <div class="desc">Proporsi positif / netral / negatif</div>
+        <div id="senDonut" class="chart"></div></div>
+      <div class="panel"><h3>Sentimen Bersih per Topik</h3>
+        <div class="desc">Net = (% positif − % negatif) tiap topik. Hijau = condong positif.</div>
+        <div id="senTopic" class="chart"></div></div>
+    </div>
+    <div class="grid one" id="senTrendWrap">
+      <div class="panel"><h3>Tren Sentimen per Bulan</h3>
+        <div class="desc">Jumlah dokumen per sentimen tiap bulan</div>
+        <div id="senTrend" class="chart"></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>😊 Contoh Positif</h3>
+        <div class="desc">Dokumen dengan keyakinan positif tertinggi</div>
+        <div class="clist" id="senPos"></div></div>
+      <div class="panel"><h3>😠 Contoh Negatif</h3>
+        <div class="desc">Dokumen dengan keyakinan negatif tertinggi</div>
+        <div class="clist" id="senNeg"></div></div>
+    </div>
+  </section>
 </div>
 
 <footer>
@@ -199,12 +237,12 @@
 </footer>
 
 <script>
-const ACCENT='#f97316', ACCENT2='#fb923c', ORANGES=['#f97316','#fb923c','#fdba74','#ea580c','#c2410c','#fed7aa','#9a3412','#fdba74'];
-const AX={axisLine:{lineStyle:{color:'#3a4252'}},axisLabel:{color:'#9aa3b2'},splitLine:{lineStyle:{color:'#222836'}}};
+const ACCENT='#ea580c', ACCENT2='#f97316', ORANGES=['#ea580c','#f97316','#fb923c','#c2410c','#9a3412','#fdba74','#7c2d12','#fdba74'];
+const AX={axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},splitLine:{lineStyle:{color:'#eef1f4'}}};
 const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
 const charts=[];
 function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el,null,{renderer:'canvas'});c.setOption(opt);charts.push(c);return c;}
-function resizeAll(){charts.forEach(c=>c.resize());topShareC&&topShareC.resize();topTrendC&&topTrendC.resize();}
+function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC].forEach(c=>c&&c.resize());}
 window.addEventListener('resize',resizeAll);
 const baseGrid={left:8,right:18,top:18,bottom:8,containLabel:true};
 const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}};
@@ -212,18 +250,18 @@ const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}}
 function barH(id,data,color){
   mk(id,{grid:baseGrid,tooltip:tipAxis,
     xAxis:{type:'value',...AX},
-    yAxis:{type:'category',inverse:true,data:data.map(d=>d.name),...AX,axisLabel:{color:'#cbd2dd',width:140,overflow:'truncate'}},
+    yAxis:{type:'category',inverse:true,data:data.map(d=>d.name),...AX,axisLabel:{color:'#374151',width:140,overflow:'truncate'}},
     series:[{type:'bar',data:data.map(d=>d.value),itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]}}]});
 }
 function donut(id,data){
-  mk(id,{tooltip:tip,legend:{type:'scroll',orient:'vertical',right:6,top:'middle',textStyle:{color:'#9aa3b2',fontSize:11}},
+  mk(id,{tooltip:tip,legend:{type:'scroll',orient:'vertical',right:6,top:'middle',textStyle:{color:'#6b7280',fontSize:11}},
     series:[{type:'pie',radius:['42%','70%'],center:['38%','52%'],
       data:data.map((d,i)=>({...d,itemStyle:{color:ORANGES[i%ORANGES.length]}})),
-      label:{color:'#cbd2dd',fontSize:11},labelLine:{lineStyle:{color:'#3a4252'}}}]});
+      label:{color:'#374151',fontSize:11},labelLine:{lineStyle:{color:'#d1d5db'}}}]});
 }
 function line(id,data){
   mk(id,{grid:baseGrid,tooltip:tipAxis,
-    xAxis:{type:'category',data:data.map(d=>d.date),...AX,axisLabel:{color:'#9aa3b2',fontSize:10}},
+    xAxis:{type:'category',data:data.map(d=>d.date),...AX,axisLabel:{color:'#6b7280',fontSize:10}},
     yAxis:{type:'value',...AX},
     series:[{type:'line',smooth:true,symbol:'none',data:data.map(d=>d.value),
       areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(249,115,22,.5)'},{offset:1,color:'rgba(249,115,22,0)'}])},
@@ -234,16 +272,17 @@ function words(id,data,color){
   const d=data.slice(0,18);
   mk(id,{grid:baseGrid,tooltip:tipAxis,
     xAxis:{type:'value',...AX},
-    yAxis:{type:'category',inverse:true,data:d.map(x=>x.name),...AX,axisLabel:{color:'#cbd2dd'}},
+    yAxis:{type:'category',inverse:true,data:d.map(x=>x.name),...AX,axisLabel:{color:'#374151'}},
     series:[{type:'bar',data:d.map(x=>x.value),
       itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]},
-      label:{show:true,position:'right',color:'#9aa3b2',fontSize:10}}]});
+      label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null;
-Promise.all(['overview','news','youtube','comments','topics'].map(n=>fetch('data/'+n+'.json').then(r=>r.json())))
-.then(([ov,news,yt,com,topics])=>{
-  TOPICS=topics;
+let TOPICS=null, SENT=null;
+const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
+Promise.all(['overview','news','youtube','comments','topics','sentiment'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent])=>{
+  TOPICS=topics; SENT=sent;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -296,8 +335,72 @@ Promise.all(['overview','news','youtube','comments','topics'].map(n=>fetch('data
     s.classList.add('active'); renderTopics(s.dataset.c);
   });
 
+  // ---- SENTIMEN ----
+  if(SENT){
+    const first=SENT.news?'news':Object.keys(SENT)[0];
+    renderSentiment(first);
+    document.querySelectorAll('#senSwitch .subtab').forEach(s=>s.onclick=()=>{
+      if(!SENT[s.dataset.c]){return;}
+      document.querySelectorAll('#senSwitch .subtab').forEach(x=>x.classList.remove('active'));
+      s.classList.add('active'); renderSentiment(s.dataset.c);
+    });
+    // grey out corpora without data yet
+    document.querySelectorAll('#senSwitch .subtab').forEach(s=>{
+      if(!SENT[s.dataset.c]){s.style.opacity=.4;s.title='belum tersedia';}
+    });
+  }
+
   setTimeout(()=>charts.forEach(c=>c.resize()),50);
 });
+
+let senDonutC=null,senTopicC=null,senTrendC=null;
+function senCard(x){return `<div class="cmt"><div class="top">
+  <span class="likes" style="color:${x.score>=0?'var(--good)':'var(--bad)'}">keyakinan ${(x.score*100).toFixed(0)}%</span>
+  ${x.weight?`<span style="color:var(--muted)">👍 ${(+x.weight).toLocaleString('id')}</span>`:''}</div>
+  <div class="body">${esc((x.text||'').slice(0,200))}</div></div>`;}
+function renderSentiment(corpus){
+  const d=SENT[corpus]; if(!d)return;
+  const ov=d.overall, tot=ov.pos+ov.neu+ov.neg;
+  document.getElementById('senMeta').innerHTML=
+    `<b>${d.n_docs.toLocaleString('id')}</b> dokumen · sentimen bersih `+
+    `<b style="color:${d.net>=0?'var(--good)':'var(--bad)'}">${d.net>=0?'+':''}${d.net}%</b>`+
+    (corpus==='comments'?' · sampel 50rb komentar':'');
+  // donut
+  if(senDonutC)senDonutC.dispose(); senDonutC=echarts.init(document.getElementById('senDonut'));
+  senDonutC.setOption({tooltip:{trigger:'item',formatter:p=>`${p.name}: ${p.value} (${p.percent}%)`},
+    legend:{bottom:0,textStyle:{color:'#6b7280'}},
+    series:[{type:'pie',radius:['45%','72%'],center:['50%','45%'],
+      data:[{name:'Positif',value:ov.pos,itemStyle:{color:SEN_COL.pos}},
+            {name:'Netral',value:ov.neu,itemStyle:{color:SEN_COL.neu}},
+            {name:'Negatif',value:ov.neg,itemStyle:{color:SEN_COL.neg}}],
+      label:{color:'#374151',formatter:'{b}\n{d}%',fontSize:11}}]});
+  // net per topic (diverging)
+  const tp=d.by_topic.slice().sort((a,b)=>a.net-b.net);
+  if(senTopicC)senTopicC.dispose(); senTopicC=echarts.init(document.getElementById('senTopic'));
+  senTopicC.setOption({grid:{left:8,right:40,top:10,bottom:8,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:p=>`${p[0].name}<br/>net ${p[0].value>0?'+':''}${p[0].value}% (n=${tp[p[0].dataIndex].n})`},
+    xAxis:{type:'value',axisLabel:{formatter:v=>v+'%',color:'#6b7280'},axisLine:{lineStyle:{color:'#d1d5db'}},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    yAxis:{type:'category',data:tp.map(t=>t.label),axisLine:{lineStyle:{color:'#d1d5db'}},
+      axisLabel:{color:'#374151',width:230,overflow:'break',fontSize:11}},
+    series:[{type:'bar',data:tp.map(t=>({value:t.net,itemStyle:{color:t.net>=0?SEN_COL.pos:SEN_COL.neg,borderRadius:[0,4,4,0]}})),
+      label:{show:true,position:'right',formatter:p=>(p.value>0?'+':'')+p.value+'%',color:'#6b7280',fontSize:10}}]});
+  // monthly trend
+  const wrap=document.getElementById('senTrendWrap');
+  if(d.monthly && d.monthly.length){
+    wrap.style.display='';
+    if(senTrendC)senTrendC.dispose(); senTrendC=echarts.init(document.getElementById('senTrend'));
+    senTrendC.setOption({grid:{left:8,right:18,top:30,bottom:8,containLabel:true},
+      tooltip:{trigger:'axis'},legend:{top:0,textStyle:{color:'#6b7280'}},
+      xAxis:{type:'category',data:d.monthly.map(m=>m.month),axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'}},
+      yAxis:{type:'value',axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},splitLine:{lineStyle:{color:'#eef1f4'}}},
+      series:[['Positif','pos'],['Netral','neu'],['Negatif','neg']].map(([nm,k])=>({
+        name:nm,type:'bar',stack:'s',data:d.monthly.map(m=>m[k]),itemStyle:{color:SEN_COL[k]}}))});
+  } else { wrap.style.display='none'; }
+  // samples
+  document.getElementById('senPos').innerHTML=(d.samples.positive||[]).slice(0,8).map(senCard).join('')||'<div class="desc">—</div>';
+  document.getElementById('senNeg').innerHTML=(d.samples.negative||[]).slice(0,8).map(senCard).join('')||'<div class="desc">—</div>';
+  setTimeout(()=>{[senDonutC,senTopicC,senTrendC].forEach(c=>c&&c.resize());},30);
+}
 
 let topShareC=null, topTrendC=null;
 function renderTopics(corpus){
@@ -311,12 +414,12 @@ function renderTopics(corpus){
   if(topShareC)topShareC.dispose();
   topShareC=echarts.init(el);
   topShareC.setOption({grid:{left:8,right:60,top:10,bottom:8,containLabel:true},tooltip:tipAxis,
-    xAxis:{type:'value',axisLabel:{formatter:v=>v+'%',color:'#9aa3b2'},...AX},
+    xAxis:{type:'value',axisLabel:{formatter:v=>v+'%',color:'#6b7280'},...AX},
     yAxis:{type:'category',inverse:true,data:items.map(t=>t.label),...AX,
-      axisLabel:{color:'#cbd2dd',width:300,overflow:'break',fontSize:11}},
+      axisLabel:{color:'#374151',width:300,overflow:'break',fontSize:11}},
     series:[{type:'bar',data:items.map(t=>+(t.share*100).toFixed(1)),
       itemStyle:{color:ACCENT,borderRadius:[0,4,4,0]},
-      label:{show:true,position:'right',formatter:'{c}%',color:'#9aa3b2',fontSize:11}}]});
+      label:{show:true,position:'right',formatter:'{c}%',color:'#6b7280',fontSize:11}}]});
   // trend (stacked area) — only if months exist
   const wrap=document.getElementById('topTrendWrap');
   if(d.months && d.months.length>0 && d.series.length){
@@ -325,7 +428,7 @@ function renderTopics(corpus){
     if(topTrendC)topTrendC.dispose();
     topTrendC=echarts.init(tel);
     topTrendC.setOption({grid:{left:8,right:18,top:30,bottom:8,containLabel:true},
-      tooltip:{trigger:'axis'},legend:{type:'scroll',top:0,textStyle:{color:'#9aa3b2',fontSize:10},pageTextStyle:{color:'#9aa3b2'}},
+      tooltip:{trigger:'axis'},legend:{type:'scroll',top:0,textStyle:{color:'#6b7280',fontSize:10},pageTextStyle:{color:'#6b7280'}},
       xAxis:{type:'category',data:d.months,...AX},yAxis:{type:'value',...AX},
       series:d.series.map((s,i)=>({name:s.label,type:'line',stack:'t',areaStyle:{},
         symbol:'none',smooth:true,lineStyle:{width:1},
