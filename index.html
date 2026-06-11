@@ -95,6 +95,7 @@
     <div class="tab" data-t="topik">🧩 Topik</div>
     <div class="tab" data-t="sentimen">😊 Sentimen</div>
     <div class="tab" data-t="stance">⚖️ Stance</div>
+    <div class="tab" data-t="tokoh">👥 Tokoh</div>
   </div>
 
   <!-- BERITA -->
@@ -254,6 +255,38 @@
         <div class="tlist" id="stCards"></div></div>
     </div>
   </section>
+
+  <!-- TOKOH (NER) -->
+  <section id="tokoh">
+    <div class="panel" style="margin-bottom:14px">
+      <h3>Tokoh, Organisasi & Lokasi (NER)</h3>
+      <div class="desc">Entitas yang paling sering disebut, diekstrak via model
+        <code>cahya-bert-id-ner</code> (nama Dedi Mulyadi/KDM sendiri dikecualikan).
+        Dihitung per dokumen unik. Pilih korpus:</div>
+      <div class="subtabs" id="nerSwitch">
+        <div class="subtab active" data-c="news">📰 Berita</div>
+        <div class="subtab" data-c="video">🎬 Konten Video</div>
+        <div class="subtab" data-c="comments">💬 Komentar</div>
+      </div>
+      <div class="desc" id="nerMeta" style="margin-top:10px"></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>👤 Top Tokoh</h3>
+        <div class="desc">Orang lain yang paling sering disebut</div>
+        <div id="nerPer" class="chart tall"></div></div>
+      <div class="panel"><h3>🏛️ Top Organisasi</h3>
+        <div class="desc">Lembaga/organisasi paling sering disebut</div>
+        <div id="nerOrg" class="chart tall"></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>📍 Top Lokasi</h3>
+        <div class="desc">Tempat paling sering disebut</div>
+        <div id="nerLoc" class="chart tall"></div></div>
+      <div class="panel"><h3>🔗 Pasangan Tokoh Disebut Bersama</h3>
+        <div class="desc">Dua tokoh yang sering muncul di dokumen yang sama</div>
+        <div class="clist" id="nerCo"></div></div>
+    </div>
+  </section>
 </div>
 
 <footer>
@@ -269,7 +302,7 @@ const AX={axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},spl
 const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
 const charts=[];
 function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el,null,{renderer:'canvas'});c.setOption(opt);charts.push(c);return c;}
-function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC,stBarC].forEach(c=>c&&c.resize());}
+function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC,stBarC,nerPerC,nerOrgC,nerLocC].forEach(c=>c&&c.resize());}
 window.addEventListener('resize',resizeAll);
 const baseGrid={left:8,right:18,top:18,bottom:8,containLabel:true};
 const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}};
@@ -304,12 +337,12 @@ function words(id,data,color){
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null, SENT=null, STANCE=null;
+let TOPICS=null, SENT=null, STANCE=null, NER=null;
 const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
 const ST_COL={pro:'#059669',netral:'#9ca3af',kontra:'#dc2626'};
-Promise.all(['overview','news','youtube','comments','topics','sentiment','stance'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
-.then(([ov,news,yt,com,topics,sent,stance])=>{
-  TOPICS=topics; SENT=sent; STANCE=stance;
+Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent,stance,ner])=>{
+  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -386,8 +419,48 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment','stance
     });
   }
 
+  // ---- TOKOH (NER) ----
+  if(NER){
+    const first=NER.news?'news':Object.keys(NER)[0];
+    renderNER(first);
+    document.querySelectorAll('#nerSwitch .subtab').forEach(s=>s.onclick=()=>{
+      if(!NER[s.dataset.c])return;
+      document.querySelectorAll('#nerSwitch .subtab').forEach(x=>x.classList.remove('active'));
+      s.classList.add('active'); renderNER(s.dataset.c);
+    });
+    document.querySelectorAll('#nerSwitch .subtab').forEach(s=>{
+      if(!NER[s.dataset.c]){s.style.opacity=.4;s.title='belum tersedia';}});
+  }
+
   setTimeout(()=>charts.forEach(c=>c.resize()),50);
 });
+
+let nerPerC=null,nerOrgC=null,nerLocC=null;
+function nerBar(elId,data,color){
+  const d=data.slice(0,15);
+  const el=document.getElementById(elId);
+  const c=echarts.init(el);
+  c.setOption({grid:{left:8,right:30,top:10,bottom:8,containLabel:true},tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    xAxis:{type:'value',axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    yAxis:{type:'category',inverse:true,data:d.map(x=>x.name),axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#374151',width:130,overflow:'truncate',fontSize:11}},
+    series:[{type:'bar',data:d.map(x=>x.count),itemStyle:{color,borderRadius:[0,4,4,0]},label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
+  return c;
+}
+function renderNER(corpus){
+  const d=NER[corpus]; if(!d)return;
+  document.getElementById('nerMeta').innerHTML=
+    `<b>${d.n_docs.toLocaleString('id')}</b> dokumen di-NER`+
+    (corpus==='comments'?' (sampel)':'');
+  if(nerPerC)nerPerC.dispose(); nerPerC=nerBar('nerPer',d.PER||[],'#ea580c');
+  if(nerOrgC)nerOrgC.dispose(); nerOrgC=nerBar('nerOrg',d.ORG||[],'#0d9488');
+  if(nerLocC)nerLocC.dispose(); nerLocC=nerBar('nerLoc',d.LOC||[],'#64748b');
+  const co=(d.co_person||[]).slice(0,12);
+  document.getElementById('nerCo').innerHTML=co.length?co.map(c=>`
+    <div class="cmt"><div class="top"><span class="who">${esc(c.pair[0])} ↔ ${esc(c.pair[1])}</span>
+      <span class="likes">${c.count}×</span></div></div>`).join('')
+    :'<div class="desc">—</div>';
+  setTimeout(()=>{[nerPerC,nerOrgC,nerLocC].forEach(c=>c&&c.resize());},30);
+}
 
 let stBarC=null;
 function renderStance(src){
