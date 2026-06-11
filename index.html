@@ -94,6 +94,7 @@
     <div class="tab" data-t="komentar">💬 Komentar</div>
     <div class="tab" data-t="topik">🧩 Topik</div>
     <div class="tab" data-t="sentimen">😊 Sentimen</div>
+    <div class="tab" data-t="stance">⚖️ Stance</div>
   </div>
 
   <!-- BERITA -->
@@ -229,6 +230,30 @@
         <div class="clist" id="senNeg"></div></div>
     </div>
   </section>
+
+  <!-- STANCE -->
+  <section id="stance">
+    <div class="panel" style="margin-bottom:14px">
+      <h3>Stance per Kebijakan (Zero-shot NLI)</h3>
+      <div class="desc">Sikap dokumen terhadap kebijakan/isu KDM — mendukung / menolak / netral —
+        via model <code>mDeBERTa-xnli</code> (zero-shot). Pilih sumber:</div>
+      <div class="subtabs" id="stSwitch">
+        <div class="subtab active" data-c="news">📰 Berita</div>
+        <div class="subtab" data-c="comments">💬 Komentar</div>
+      </div>
+      <div class="desc" id="stMeta" style="margin-top:10px"></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Dukungan vs Penolakan per Kebijakan</h3>
+        <div class="desc">Proporsi pro (hijau) / netral (abu) / kontra (merah) tiap kebijakan</div>
+        <div id="stBar" class="chart tall"></div></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Rincian Kebijakan</h3>
+        <div class="desc">Pro/kontra tiap kebijakan + contoh suara pendukung & penentang</div>
+        <div class="tlist" id="stCards"></div></div>
+    </div>
+  </section>
 </div>
 
 <footer>
@@ -244,7 +269,7 @@ const AX={axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},spl
 const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
 const charts=[];
 function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el,null,{renderer:'canvas'});c.setOption(opt);charts.push(c);return c;}
-function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC].forEach(c=>c&&c.resize());}
+function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC,stBarC].forEach(c=>c&&c.resize());}
 window.addEventListener('resize',resizeAll);
 const baseGrid={left:8,right:18,top:18,bottom:8,containLabel:true};
 const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}};
@@ -279,11 +304,12 @@ function words(id,data,color){
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null, SENT=null;
+let TOPICS=null, SENT=null, STANCE=null;
 const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
-Promise.all(['overview','news','youtube','comments','topics','sentiment'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
-.then(([ov,news,yt,com,topics,sent])=>{
-  TOPICS=topics; SENT=sent;
+const ST_COL={pro:'#059669',netral:'#9ca3af',kontra:'#dc2626'};
+Promise.all(['overview','news','youtube','comments','topics','sentiment','stance'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent,stance])=>{
+  TOPICS=topics; SENT=sent; STANCE=stance;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -351,8 +377,62 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment'].map(n=
     });
   }
 
+  // ---- STANCE ----
+  if(STANCE && STANCE.kebijakan){
+    renderStance('news');
+    document.querySelectorAll('#stSwitch .subtab').forEach(s=>s.onclick=()=>{
+      document.querySelectorAll('#stSwitch .subtab').forEach(x=>x.classList.remove('active'));
+      s.classList.add('active'); renderStance(s.dataset.c);
+    });
+  }
+
   setTimeout(()=>charts.forEach(c=>c.resize()),50);
 });
+
+let stBarC=null;
+function renderStance(src){
+  const K=STANCE.kebijakan;
+  const rows=Object.keys(K).filter(k=>K[k][src]).map(k=>{
+    const m=K[k][src].meta; const n=m.n||1;
+    return {name:k, pro:m.pro, netral:m.netral, kontra:m.kontra, n,
+            pro_pct:+(m.pro/n*100).toFixed(0), kontra_pct:+(m.kontra/n*100).toFixed(0),
+            netral_pct:+(m.netral/n*100).toFixed(0),
+            net:+((m.pro-m.kontra)/n*100).toFixed(0),
+            samples:K[k][src].samples||{}};
+  });
+  const totN=rows.reduce((a,r)=>a+r.n,0);
+  document.getElementById('stMeta').innerHTML=
+    `<b>${rows.length}</b> kebijakan · <b>${totN.toLocaleString('id')}</b> dokumen terklasifikasi`+
+    (src==='comments'?' (cap 250/kebijakan)':' (kalimat berita, cap 250/kebijakan)');
+  // stacked horizontal bar (% per kebijakan), sorted by net
+  const rs=rows.slice().sort((a,b)=>a.net-b.net);
+  if(stBarC)stBarC.dispose(); stBarC=echarts.init(document.getElementById('stBar'));
+  stBarC.setOption({grid:{left:8,right:50,top:30,bottom:8,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    legend:{top:0,data:['Pro','Netral','Kontra'],textStyle:{color:'#6b7280'}},
+    xAxis:{type:'value',max:100,axisLabel:{formatter:'{value}%',color:'#6b7280'},axisLine:{lineStyle:{color:'#d1d5db'}},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    yAxis:{type:'category',data:rs.map(r=>r.name),axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#374151',width:150,overflow:'break',fontSize:11}},
+    series:[
+      {name:'Pro',type:'bar',stack:'s',data:rs.map(r=>r.pro_pct),itemStyle:{color:ST_COL.pro},label:{show:true,formatter:p=>p.value>7?p.value+'%':'',color:'#fff',fontSize:10}},
+      {name:'Netral',type:'bar',stack:'s',data:rs.map(r=>r.netral_pct),itemStyle:{color:ST_COL.netral}},
+      {name:'Kontra',type:'bar',stack:'s',data:rs.map(r=>r.kontra_pct),itemStyle:{color:ST_COL.kontra},label:{show:true,formatter:p=>p.value>7?p.value+'%':'',color:'#fff',fontSize:10}},
+    ]});
+  // cards
+  document.getElementById('stCards').innerHTML=rows.sort((a,b)=>b.n-a.n).map(r=>{
+    const sp=(r.samples.pro||[])[0], sk=(r.samples.kontra||[])[0];
+    return `<div class="topic" style="border-left-color:${r.net>=0?'var(--good)':'var(--bad)'}">
+      <div class="h"><span class="lab">${esc(r.name)}</span>
+        <span class="sh" style="color:${r.net>=0?'var(--good)':'var(--bad)'}">net ${r.net>=0?'+':''}${r.net}%</span></div>
+      <div class="chips" style="margin:6px 0">
+        <span class="chip" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0">pro ${r.pro_pct}%</span>
+        <span class="chip">netral ${r.netral_pct}%</span>
+        <span class="chip" style="background:#fef2f2;color:#dc2626;border-color:#fecaca">kontra ${r.kontra_pct}%</span>
+        <span class="chip">n=${r.n}</span></div>
+      ${sp?`<div class="ex" style="border-color:#a7f3d0">🟢 "${esc(sp.text.slice(0,150))}"</div>`:''}
+      ${sk?`<div class="ex" style="border-color:#fecaca">🔴 "${esc(sk.text.slice(0,150))}"</div>`:''}
+    </div>`;}).join('');
+  setTimeout(()=>stBarC&&stBarC.resize(),30);
+}
 
 let senDonutC=null,senTopicC=null,senTrendC=null;
 function senCard(x){return `<div class="cmt"><div class="top">
