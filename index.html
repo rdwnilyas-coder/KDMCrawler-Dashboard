@@ -311,9 +311,35 @@
         <div id="hmWords" class="chart"></div></div>
     </div>
     <div class="grid one">
-      <div class="panel"><h3>Daftar Artikel</h3>
+      <div class="panel"><h3>📰 Daftar Artikel Berita</h3>
         <div class="desc">Klik judul untuk buka artikel</div>
         <div style="overflow-x:auto"><table id="hmTable"></table></div></div>
+    </div>
+
+    <!-- YouTube sub-section -->
+    <div id="hmYtWrap">
+      <div class="panel" style="margin:18px 0 14px;border-left:3px solid #dc2626">
+        <h3>🎬 YouTube — Herman Suryatman</h3>
+        <div class="cards" id="hmYtCards" style="margin:10px 0 0;grid-template-columns:repeat(4,1fr)"></div>
+      </div>
+      <div class="grid">
+        <div class="panel"><h3>Upload Video per Bulan</h3>
+          <div class="desc">Jumlah video diunggah per bulan</div>
+          <div id="hmYtMonth" class="chart"></div></div>
+        <div class="panel"><h3>Kata Kunci Komentar</h3>
+          <div class="desc">Frekuensi kata pada komentar penonton</div>
+          <div id="hmYtWords" class="chart"></div></div>
+      </div>
+      <div class="grid one">
+        <div class="panel"><h3>Video Terpopuler</h3>
+          <div class="desc">Video dengan views tertinggi</div>
+          <div style="overflow-x:auto"><table id="hmYtTable"></table></div></div>
+      </div>
+      <div class="grid one">
+        <div class="panel"><h3>💬 Komentar Paling Disukai</h3>
+          <div class="desc">Top komentar berdasarkan likes</div>
+          <div class="clist" id="hmYtComments"></div></div>
+      </div>
     </div>
   </section>
 </div>
@@ -480,6 +506,29 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment','stance
         <td><a href="${a.url}" target="_blank">${esc(a.judul)}</a>
           ${a.deskripsi?`<div style="font-size:11px;color:var(--muted)">${esc(a.deskripsi.slice(0,120))}</div>`:''}</td>
         <td style="white-space:nowrap">${esc(a.reporter||'-')}</td></tr>`).join('')+'</tbody>';
+    // YouTube sub-section
+    const y=h.youtube;
+    if(y){
+      document.getElementById('hmYtWrap').style.display='';
+      document.getElementById('hmYtCards').innerHTML=[
+        [y.total_videos.toLocaleString('id'),'Video'],[fmt(y.total_views),'Views'],
+        [y.total_comments.toLocaleString('id'),'Komentar'],[y.n_channels,'Channel']
+      ].map(([n,l])=>`<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+      line('hmYtMonth',y.timeline_month);
+      words('hmYtWords',y.comment_words);
+      document.getElementById('hmYtTable').innerHTML=
+        '<thead><tr><th></th><th>Judul</th><th>Channel</th><th class="num">Views</th><th class="num">Likes</th></tr></thead><tbody>'+
+        y.top_videos.map(v=>`<tr>
+          <td>${v.thumbnail?`<a href="${v.url}" target="_blank"><img class="vthumb" src="${v.thumbnail}" loading="lazy"></a>`:''}</td>
+          <td><a href="${v.url}" target="_blank">${esc(v.title)}</a></td>
+          <td>${esc(v.channel)}</td>
+          <td class="num">${v.views.toLocaleString('id')}</td>
+          <td class="num">${v.likes.toLocaleString('id')}</td></tr>`).join('')+'</tbody>';
+      document.getElementById('hmYtComments').innerHTML=y.top_comments.map(c=>`
+        <div class="cmt"><div class="top"><span class="who">${esc(c.author)}</span>
+          <span class="likes">👍 ${c.likes.toLocaleString('id')}</span></div>
+          <div class="body">${esc(c.content)}</div></div>`).join('');
+    } else { document.getElementById('hmYtWrap').style.display='none'; }
   }
 
   setTimeout(()=>charts.forEach(c=>c.resize()),50);
