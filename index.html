@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KDMCrawler — Dashboard Kang Dedi Mulyadi</title>
+<meta name="description" content="Dashboard pemantauan media Kang Dedi Mulyadi (Gubernur Jawa Barat) — berita & YouTube, Mar–Jun 2026.">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181c24; --panel2:#1f2430; --ink:#e8eaed; --muted:#9aa3b2;
+    --accent:#f97316; --accent2:#fb923c; --line:#2a3140; --good:#34d399;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  header{padding:30px 24px 20px;background:linear-gradient(135deg,#7c2d12 0%,#c2410c 45%,#f97316 100%);
+    border-bottom:1px solid var(--line)}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.3px}
+  header .sub{color:#ffedd5;font-size:14px}
+  header .meta{margin-top:10px;font-size:12px;color:#fed7aa}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+  .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:-30px auto 8px;position:relative;z-index:2}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
+    box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  .card .n{font-size:24px;font-weight:700;color:#fff}
+  .card .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+  .tabs{display:flex;gap:8px;margin:22px 0 14px;flex-wrap:wrap}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);
+    padding:9px 18px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:600;transition:.15s}
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  section{display:none}
+  section.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:14px}
+  .grid.one{grid-template-columns:1fr}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .panel h3{margin:0 0 4px;font-size:15px}
+  .panel .desc{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .chart{width:100%;height:320px}
+  .chart.tall{height:420px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .vthumb{width:92px;height:52px;object-fit:cover;border-radius:6px;display:block}
+  .clist{display:grid;gap:10px}
+  .cmt{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .cmt .top{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .cmt .who{color:var(--accent2);font-weight:600}
+  .cmt .likes{color:var(--good);font-weight:700;white-space:nowrap}
+  .cmt .body{font-size:13.5px}
+  .cmt .vid{font-size:11px;color:var(--muted);margin-top:5px}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:26px 16px 40px}
+  .pill{display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:999px;
+    padding:2px 10px;font-size:11px;color:var(--muted);margin-left:6px}
+  @media(max-width:900px){.cards{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}}
+  @media(max-width:560px){.cards{grid-template-columns:repeat(2,1fr)}header h1{font-size:21px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🟠 KDMCrawler — Dashboard Pemantauan Media</h1>
+    <div class="sub" id="subject">Kang Dedi Mulyadi — Gubernur Jawa Barat</div>
+    <div class="meta" id="meta">memuat…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="cards" id="cards"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-t="berita">📰 Berita</div>
+    <div class="tab" data-t="youtube">🎬 YouTube</div>
+    <div class="tab" data-t="komentar">💬 Komentar</div>
+  </div>
+
+  <!-- BERITA -->
+  <section id="berita" class="active">
+    <div class="grid one">
+      <div class="panel"><h3>Volume Artikel per Bulan</h3>
+        <div class="desc">Jumlah artikel terbit per bulan (18 portal, Mar–Jun 2026)</div>
+        <div id="newsMonth" class="chart"></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Artikel per Portal</h3>
+        <div class="desc">Total artikel ter-crawl tiap portal berita</div>
+        <div id="newsPortal" class="chart tall"></div></div>
+      <div class="panel"><h3>Reporter Paling Produktif</h3>
+        <div class="desc">Top reporter berdasarkan jumlah artikel</div>
+        <div id="newsReporter" class="chart tall"></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Distribusi Kanal</h3>
+        <div class="desc">Kanal/rubrik artikel</div>
+        <div id="newsKanal" class="chart"></div></div>
+      <div class="panel"><h3>Kata Kunci Judul Berita</h3>
+        <div class="desc">Frekuensi kata pada judul artikel (stopword dibuang)</div>
+        <div id="newsWords" class="chart"></div></div>
+    </div>
+  </section>
+
+  <!-- YOUTUBE -->
+  <section id="youtube">
+    <div class="grid">
+      <div class="panel"><h3>Upload Video per Hari</h3>
+        <div class="desc">Jumlah video diunggah per hari</div>
+        <div id="ytTimeline" class="chart"></div></div>
+      <div class="panel"><h3>Kategori Video</h3>
+        <div class="desc">Kategori YouTube dari 720 video</div>
+        <div id="ytCategory" class="chart"></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Channel Paling Aktif</h3>
+        <div class="desc">Top channel berdasarkan jumlah video</div>
+        <div id="ytChannel" class="chart tall"></div></div>
+      <div class="panel"><h3>Kata Kunci Judul Video</h3>
+        <div class="desc">Frekuensi kata pada judul video</div>
+        <div id="ytWords" class="chart tall"></div></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Video Terpopuler <span class="pill" id="ytViewsPill"></span></h3>
+        <div class="desc">40 video dengan views tertinggi</div>
+        <div style="overflow-x:auto"><table id="ytTable"></table></div></div>
+    </div>
+  </section>
+
+  <!-- KOMENTAR -->
+  <section id="komentar">
+    <div class="cards" id="comCards" style="margin:0 0 14px;grid-template-columns:repeat(4,1fr)"></div>
+    <div class="grid">
+      <div class="panel"><h3>Video dengan Komentar Terbanyak</h3>
+        <div class="desc">Top 25 video by jumlah komentar terkumpul</div>
+        <div id="comVideos" class="chart tall"></div></div>
+      <div class="panel"><h3>Kata Kunci Komentar</h3>
+        <div class="desc">Frekuensi kata pada komentar (sampel 80rb)</div>
+        <div id="comWords" class="chart tall"></div></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Komentar Paling Disukai</h3>
+        <div class="desc">Top komentar berdasarkan jumlah likes</div>
+        <div class="clist" id="comTop"></div></div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  KDMCrawler · data dikumpulkan dari portal berita Indonesia & YouTube Data API ·
+  periode 10 Mar – 10 Jun 2026 ·
+  <a href="https://github.com/rdwnilyas-coder/KDMCrawler-Dashboard">source</a>
+</footer>
+
+<script>
+const ACCENT='#f97316', ACCENT2='#fb923c', ORANGES=['#f97316','#fb923c','#fdba74','#ea580c','#c2410c','#fed7aa','#9a3412','#fdba74'];
+const AX={axisLine:{lineStyle:{color:'#3a4252'}},axisLabel:{color:'#9aa3b2'},splitLine:{lineStyle:{color:'#222836'}}};
+const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
+const charts=[];
+function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el,null,{renderer:'canvas'});c.setOption(opt);charts.push(c);return c;}
+window.addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+const baseGrid={left:8,right:18,top:18,bottom:8,containLabel:true};
+const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}};
+
+function barH(id,data,color){
+  mk(id,{grid:baseGrid,tooltip:tipAxis,
+    xAxis:{type:'value',...AX},
+    yAxis:{type:'category',inverse:true,data:data.map(d=>d.name),...AX,axisLabel:{color:'#cbd2dd',width:140,overflow:'truncate'}},
+    series:[{type:'bar',data:data.map(d=>d.value),itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]}}]});
+}
+function donut(id,data){
+  mk(id,{tooltip:tip,legend:{type:'scroll',orient:'vertical',right:6,top:'middle',textStyle:{color:'#9aa3b2',fontSize:11}},
+    series:[{type:'pie',radius:['42%','70%'],center:['38%','52%'],
+      data:data.map((d,i)=>({...d,itemStyle:{color:ORANGES[i%ORANGES.length]}})),
+      label:{color:'#cbd2dd',fontSize:11},labelLine:{lineStyle:{color:'#3a4252'}}}]});
+}
+function line(id,data){
+  mk(id,{grid:baseGrid,tooltip:tipAxis,
+    xAxis:{type:'category',data:data.map(d=>d.date),...AX,axisLabel:{color:'#9aa3b2',fontSize:10}},
+    yAxis:{type:'value',...AX},
+    series:[{type:'line',smooth:true,symbol:'none',data:data.map(d=>d.value),
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'rgba(249,115,22,.5)'},{offset:1,color:'rgba(249,115,22,0)'}])},
+      lineStyle:{color:ACCENT,width:2},itemStyle:{color:ACCENT}}]});
+}
+// word-frequency rendered as a colored horizontal bar (reliable across browsers)
+function words(id,data,color){
+  const d=data.slice(0,18);
+  mk(id,{grid:baseGrid,tooltip:tipAxis,
+    xAxis:{type:'value',...AX},
+    yAxis:{type:'category',inverse:true,data:d.map(x=>x.name),...AX,axisLabel:{color:'#cbd2dd'}},
+    series:[{type:'bar',data:d.map(x=>x.value),
+      itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]},
+      label:{show:true,position:'right',color:'#9aa3b2',fontSize:10}}]});
+}
+
+Promise.all(['overview','news','youtube','comments'].map(n=>fetch('data/'+n+'.json').then(r=>r.json())))
+.then(([ov,news,yt,com])=>{
+  // header
+  document.getElementById('subject').textContent=ov.subject;
+  document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
+  // cards
+  const cards=[['news_articles','Artikel'],['news_portals','Portal'],['yt_videos','Video YT'],
+    ['yt_views','Views YT'],['yt_channels','Channel'],['comments','Komentar']];
+  document.getElementById('cards').innerHTML=cards.map(([k,l])=>
+    `<div class="card"><div class="n">${(ov[k]||0).toLocaleString('id')}</div><div class="l">${l}</div></div>`).join('');
+
+  // ---- BERITA ----
+  line('newsMonth',news.timeline_month);
+  barH('newsPortal',news.by_portal);
+  barH('newsReporter',news.top_reporters.slice(0,18),ACCENT2);
+  donut('newsKanal',news.by_kanal.slice(0,12));
+  words('newsWords',news.title_words);
+
+  // ---- YOUTUBE ----
+  line('ytTimeline',yt.timeline_day);
+  donut('ytCategory',yt.categories);
+  barH('ytChannel',yt.top_channels.map(c=>({name:c.name,value:c.videos})));
+  words('ytWords',yt.title_words,'#fb923c');
+  document.getElementById('ytViewsPill').textContent=fmt(yt.total_views)+' total views';
+  document.getElementById('ytTable').innerHTML=
+    '<thead><tr><th></th><th>Judul</th><th>Channel</th><th class="num">Views</th><th class="num">Likes</th><th class="num">Komentar</th></tr></thead><tbody>'+
+    yt.top_videos.map(v=>`<tr>
+      <td>${v.thumbnail?`<a href="${v.url}" target="_blank"><img class="vthumb" src="${v.thumbnail}" loading="lazy"></a>`:''}</td>
+      <td><a href="${v.url}" target="_blank">${esc(v.title)}</a></td>
+      <td>${esc(v.channel)}</td>
+      <td class="num">${v.views.toLocaleString('id')}</td>
+      <td class="num">${v.likes.toLocaleString('id')}</td>
+      <td class="num">${v.comments.toLocaleString('id')}</td></tr>`).join('')+'</tbody>';
+
+  // ---- KOMENTAR ----
+  const cc=[['total','Total Komentar'],['videos_with_comments','Video Berkomentar'],
+    ['top_level','Komentar Utama'],['replies','Balasan']];
+  document.getElementById('comCards').innerHTML=cc.map(([k,l])=>
+    `<div class="card"><div class="n">${(com[k]||0).toLocaleString('id')}</div><div class="l">${l}</div></div>`).join('');
+  barH('comVideos',com.top_commented_videos.slice(0,18).map(v=>({name:v.video,value:v.comments})));
+  words('comWords',com.word_freq);
+  document.getElementById('comTop').innerHTML=com.top_liked.slice(0,20).map(c=>`
+    <div class="cmt"><div class="top"><span class="who">${esc(c.author)}</span>
+      <span class="likes">👍 ${c.likes.toLocaleString('id')}</span></div>
+      <div class="body">${esc(c.content)}</div>
+      <div class="vid">▶ <a href="${c.url}" target="_blank">${esc(c.video)}</a></div></div>`).join('');
+
+  setTimeout(()=>charts.forEach(c=>c.resize()),50);
+});
+
+function esc(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+
+// tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('section').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById(t.dataset.t).classList.add('active');
+  setTimeout(()=>charts.forEach(c=>c.resize()),30);
+});
+</script>
+</body>
+</html>
