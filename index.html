@@ -286,6 +286,12 @@
         <div class="desc">Dua tokoh yang sering muncul di dokumen yang sama</div>
         <div class="clist" id="nerCo"></div></div>
     </div>
+    <div class="grid one" id="esentWrap">
+      <div class="panel"><h3>🎭 Sentimen per Tokoh (NER × BERT)</h3>
+        <div class="desc">Sentimen bersih (% positif − % negatif) dari dokumen yang menyebut
+          tiap tokoh/entitas. Hijau = dibicarakan positif, merah = negatif. Angka = jumlah penyebutan.</div>
+        <div id="esentBar" class="chart tall"></div></div>
+    </div>
   </section>
 </div>
 
@@ -302,7 +308,7 @@ const AX={axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},spl
 const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
 const charts=[];
 function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el,null,{renderer:'canvas'});c.setOption(opt);charts.push(c);return c;}
-function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC,stBarC,nerPerC,nerOrgC,nerLocC].forEach(c=>c&&c.resize());}
+function resizeAll(){charts.forEach(c=>c.resize());[topShareC,topTrendC,senDonutC,senTopicC,senTrendC,stBarC,nerPerC,nerOrgC,nerLocC,esentC].forEach(c=>c&&c.resize());}
 window.addEventListener('resize',resizeAll);
 const baseGrid={left:8,right:18,top:18,bottom:8,containLabel:true};
 const tip={trigger:'item'}, tipAxis={trigger:'axis',axisPointer:{type:'shadow'}};
@@ -337,12 +343,12 @@ function words(id,data,color){
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null, SENT=null, STANCE=null, NER=null;
+let TOPICS=null, SENT=null, STANCE=null, NER=null, ESENT=null;
 const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
 const ST_COL={pro:'#059669',netral:'#9ca3af',kontra:'#dc2626'};
-Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
-.then(([ov,news,yt,com,topics,sent,stance,ner])=>{
-  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner;
+Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner','entity_sentiment'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent,stance,ner,esent])=>{
+  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner; ESENT=esent;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -459,7 +465,28 @@ function renderNER(corpus){
     <div class="cmt"><div class="top"><span class="who">${esc(c.pair[0])} ↔ ${esc(c.pair[1])}</span>
       <span class="likes">${c.count}×</span></div></div>`).join('')
     :'<div class="desc">—</div>';
+  renderEntitySentiment(corpus);
   setTimeout(()=>{[nerPerC,nerOrgC,nerLocC].forEach(c=>c&&c.resize());},30);
+}
+
+let esentC=null;
+function renderEntitySentiment(corpus){
+  const wrap=document.getElementById('esentWrap');
+  const d=ESENT&&ESENT[corpus];
+  if(!d||!d.entities||!d.entities.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+  // top by mentions, then sort by net for display
+  const items=d.entities.slice(0,18).sort((a,b)=>a.net-b.net);
+  if(esentC)esentC.dispose(); esentC=echarts.init(document.getElementById('esentBar'));
+  esentC.setOption({grid:{left:8,right:48,top:10,bottom:8,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},
+      formatter:p=>{const e=items[p[0].dataIndex];return `${e.name} (${e.type})<br/>net ${e.net>0?'+':''}${e.net}% · ${e.n} sebutan<br/>+${e.pos} / ~${e.neu} / -${e.neg}`;}},
+    xAxis:{type:'value',axisLabel:{formatter:'{value}%',color:'#6b7280'},axisLine:{lineStyle:{color:'#d1d5db'}},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    yAxis:{type:'category',data:items.map(e=>`${e.name} (${e.n})`),axisLine:{lineStyle:{color:'#d1d5db'}},
+      axisLabel:{color:'#374151',width:180,overflow:'truncate',fontSize:11}},
+    series:[{type:'bar',data:items.map(e=>({value:e.net,itemStyle:{color:e.net>=0?SEN_COL.pos:SEN_COL.neg,borderRadius:e.net>=0?[0,4,4,0]:[4,0,0,4]}})),
+      label:{show:true,position:'right',formatter:p=>(p.value>0?'+':'')+p.value+'%',color:'#6b7280',fontSize:10}}]});
+  setTimeout(()=>esentC&&esentC.resize(),30);
 }
 
 let stBarC=null;
