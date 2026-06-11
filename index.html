@@ -323,12 +323,17 @@
         <div class="cards" id="hmYtCards" style="margin:10px 0 0;grid-template-columns:repeat(4,1fr)"></div>
       </div>
       <div class="grid">
-        <div class="panel"><h3>Upload Video per Bulan</h3>
-          <div class="desc">Jumlah video diunggah per bulan</div>
-          <div id="hmYtMonth" class="chart"></div></div>
+        <div class="panel"><h3>Sentimen Komentar <span class="pill" id="hmSenNet"></span></h3>
+          <div class="desc">Distribusi sentimen komentar penonton (IndoRoBERTa)</div>
+          <div id="hmSenDonut" class="chart"></div></div>
         <div class="panel"><h3>Kata Kunci Komentar</h3>
           <div class="desc">Frekuensi kata pada komentar penonton</div>
           <div id="hmYtWords" class="chart"></div></div>
+      </div>
+      <div class="grid one">
+        <div class="panel"><h3>Upload Video per Bulan</h3>
+          <div class="desc">Jumlah video diunggah per bulan</div>
+          <div id="hmYtMonth" class="chart"></div></div>
       </div>
       <div class="grid one">
         <div class="panel"><h3>Video Terpopuler</h3>
@@ -516,6 +521,20 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment','stance
       ].map(([n,l])=>`<div class="card"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
       line('hmYtMonth',y.timeline_month);
       words('hmYtWords',y.comment_words);
+      // comment sentiment donut
+      const cs=h.sentiment&&h.sentiment.comments;
+      if(cs){
+        document.getElementById('hmSenNet').textContent=`net ${cs.net>=0?'+':''}${cs.net}%`;
+        const sc=echarts.init(document.getElementById('hmSenDonut'));
+        sc.setOption({tooltip:{trigger:'item',formatter:p=>`${p.name}: ${p.value} (${p.percent}%)`},
+          legend:{bottom:0,textStyle:{color:'#6b7280'}},
+          series:[{type:'pie',radius:['45%','72%'],center:['50%','45%'],
+            data:[{name:'Positif',value:cs.pos,itemStyle:{color:SEN_COL.pos}},
+                  {name:'Netral',value:cs.neu,itemStyle:{color:SEN_COL.neu}},
+                  {name:'Negatif',value:cs.neg,itemStyle:{color:SEN_COL.neg}}],
+            label:{color:'#374151',formatter:'{b}\n{d}%',fontSize:11}}]});
+        charts.push(sc);
+      }
       document.getElementById('hmYtTable').innerHTML=
         '<thead><tr><th></th><th>Judul</th><th>Channel</th><th class="num">Views</th><th class="num">Likes</th></tr></thead><tbody>'+
         y.top_videos.map(v=>`<tr>
