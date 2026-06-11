@@ -18,9 +18,10 @@
   a:hover{text-decoration:underline}
   header{padding:30px 24px 52px;background:linear-gradient(135deg,#7c2d12 0%,#c2410c 45%,#f97316 100%);
     border-bottom:1px solid var(--line)}
-  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.3px}
-  header .sub{color:#ffedd5;font-size:14px}
-  header .meta{margin-top:10px;font-size:12px;color:#fed7aa}
+  header h1{margin:0 0 6px;font-size:26px;letter-spacing:.3px;color:#fff}
+  header .sub{color:#fff;font-size:14px}
+  header .meta{margin-top:10px;font-size:12px;color:#fff;opacity:.92}
+  header .meta b{color:#fff}
   .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
   .cards{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:-30px auto 8px;position:relative;z-index:2}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;
@@ -237,7 +238,8 @@
 </footer>
 
 <script>
-const ACCENT='#ea580c', ACCENT2='#f97316', ORANGES=['#ea580c','#f97316','#fb923c','#c2410c','#9a3412','#fdba74','#7c2d12','#fdba74'];
+const ACCENT='#ea580c', ACCENT2='#f97316';
+const PAL=['#ea580c','#2563eb','#16a34a','#9333ea','#0891b2','#e11d48','#ca8a04','#0d9488','#db2777','#4f46e5','#f97316','#0284c7'];
 const AX={axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'},splitLine:{lineStyle:{color:'#eef1f4'}}};
 const fmt=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(''+n);
 const charts=[];
@@ -251,12 +253,12 @@ function barH(id,data,color){
   mk(id,{grid:baseGrid,tooltip:tipAxis,
     xAxis:{type:'value',...AX},
     yAxis:{type:'category',inverse:true,data:data.map(d=>d.name),...AX,axisLabel:{color:'#374151',width:140,overflow:'truncate'}},
-    series:[{type:'bar',data:data.map(d=>d.value),itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]}}]});
+    series:[{type:'bar',data:data.map((d,i)=>({value:d.value,itemStyle:{color:color||PAL[i%PAL.length],borderRadius:[0,4,4,0]}}))}]});
 }
 function donut(id,data){
   mk(id,{tooltip:tip,legend:{type:'scroll',orient:'vertical',right:6,top:'middle',textStyle:{color:'#6b7280',fontSize:11}},
     series:[{type:'pie',radius:['42%','70%'],center:['38%','52%'],
-      data:data.map((d,i)=>({...d,itemStyle:{color:ORANGES[i%ORANGES.length]}})),
+      data:data.map((d,i)=>({...d,itemStyle:{color:PAL[i%PAL.length]}})),
       label:{color:'#374151',fontSize:11},labelLine:{lineStyle:{color:'#d1d5db'}}}]});
 }
 function line(id,data){
@@ -273,8 +275,7 @@ function words(id,data,color){
   mk(id,{grid:baseGrid,tooltip:tipAxis,
     xAxis:{type:'value',...AX},
     yAxis:{type:'category',inverse:true,data:d.map(x=>x.name),...AX,axisLabel:{color:'#374151'}},
-    series:[{type:'bar',data:d.map(x=>x.value),
-      itemStyle:{color:color||ACCENT,borderRadius:[0,4,4,0]},
+    series:[{type:'bar',data:d.map((x,i)=>({value:x.value,itemStyle:{color:PAL[i%PAL.length],borderRadius:[0,4,4,0]}})),
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
@@ -295,7 +296,7 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment'].map(n=
   // ---- BERITA ----
   line('newsMonth',news.timeline_month);
   barH('newsPortal',news.by_portal);
-  barH('newsReporter',news.top_reporters.slice(0,18),ACCENT2);
+  barH('newsReporter',news.top_reporters.slice(0,18));
   donut('newsKanal',news.by_kanal.slice(0,12));
   words('newsWords',news.title_words);
 
@@ -417,8 +418,7 @@ function renderTopics(corpus){
     xAxis:{type:'value',axisLabel:{formatter:v=>v+'%',color:'#6b7280'},...AX},
     yAxis:{type:'category',inverse:true,data:items.map(t=>t.label),...AX,
       axisLabel:{color:'#374151',width:300,overflow:'break',fontSize:11}},
-    series:[{type:'bar',data:items.map(t=>+(t.share*100).toFixed(1)),
-      itemStyle:{color:ACCENT,borderRadius:[0,4,4,0]},
+    series:[{type:'bar',data:items.map((t,i)=>({value:+(t.share*100).toFixed(1),itemStyle:{color:PAL[i%PAL.length],borderRadius:[0,4,4,0]}})),
       label:{show:true,position:'right',formatter:'{c}%',color:'#6b7280',fontSize:11}}]});
   // trend (stacked area) — only if months exist
   const wrap=document.getElementById('topTrendWrap');
@@ -432,7 +432,7 @@ function renderTopics(corpus){
       xAxis:{type:'category',data:d.months,...AX},yAxis:{type:'value',...AX},
       series:d.series.map((s,i)=>({name:s.label,type:'line',stack:'t',areaStyle:{},
         symbol:'none',smooth:true,lineStyle:{width:1},
-        itemStyle:{color:ORANGES[i%ORANGES.length]},data:s.data}))});
+        itemStyle:{color:PAL[i%PAL.length]},data:s.data}))});
   } else { wrap.style.display='none'; }
   // cards
   document.getElementById('topCards').innerHTML=d.topics.map(t=>`
