@@ -97,6 +97,7 @@
     <div class="tab" data-t="stance">⚖️ Stance</div>
     <div class="tab" data-t="tokoh">👥 Tokoh</div>
     <div class="tab" data-t="sekda">🧑‍💼 Sekda Jabar</div>
+    <div class="tab" data-t="vs">⚔️ KDM vs Herman</div>
   </div>
 
   <!-- BERITA -->
@@ -355,6 +356,35 @@
       </div>
     </div>
   </section>
+
+  <!-- KDM vs HERMAN -->
+  <section id="vs">
+    <div class="grid">
+      <div class="panel" style="border-top:3px solid #ea580c">
+        <h3>🟠 Dedi Mulyadi (KDM)</h3>
+        <div class="desc">Gubernur Jawa Barat — figur publik</div></div>
+      <div class="panel" style="border-top:3px solid #0d9488">
+        <h3>🟢 Herman Suryatman</h3>
+        <div class="desc">Sekda Jabar — 'tangan kanan' KDM</div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Volume Liputan</h3>
+        <div class="desc">Skala log — KDM jauh lebih besar; perhatikan rasio</div>
+        <div id="vsVol" class="chart"></div></div>
+      <div class="panel"><h3>Sentimen Komentar (net)</h3>
+        <div class="desc">% positif − % negatif komentar YouTube</div>
+        <div id="vsSen" class="chart"></div></div>
+    </div>
+    <div class="grid one">
+      <div class="panel"><h3>Perbandingan Angka</h3>
+        <div style="overflow-x:auto"><table id="vsTable"></table></div></div>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>🟠 Topik Komentar KDM</h3><div class="clist" id="vsTopK"></div></div>
+      <div class="panel"><h3>🟢 Topik Komentar Herman</h3><div class="clist" id="vsTopH"></div></div>
+    </div>
+    <div class="panel" id="vsInsight" style="border-left:3px solid var(--accent)"></div>
+  </section>
 </div>
 
 <footer>
@@ -499,6 +529,9 @@ Promise.all(['overview','news','youtube','comments','topics','sentiment','stance
     document.querySelectorAll('#nerSwitch .subtab').forEach(s=>{
       if(!NER[s.dataset.c]){s.style.opacity=.4;s.title='belum tersedia';}});
   }
+
+  // ---- KDM vs HERMAN ----
+  if(HERMAN&&SENT&&TOPICS) renderVS(ov);
 
   // ---- SEKDA JABAR (Herman Suryatman) ----
   if(HERMAN){
@@ -762,6 +795,67 @@ function renderTopics(corpus){
       ${t.examples.length?`<div class="ex">"${esc(t.examples[0].slice(0,160))}"</div>`:''}
     </div>`).join('');
   setTimeout(()=>{topShareC&&topShareC.resize();topTrendC&&topTrendC.resize();},30);
+}
+
+function renderVS(ov){
+  const y=HERMAN.youtube||{}, hs=(HERMAN.sentiment&&HERMAN.sentiment.comments)||{};
+  const K={art:ov.news_articles, vid:ov.yt_videos, views:ov.yt_views, com:ov.comments,
+    net:(SENT.comments?SENT.comments.net:0)};
+  const H={art:HERMAN.total, vid:y.total_videos||0, views:y.total_views||0, com:y.total_comments||0,
+    net:(hs.net||0)};
+  const ORANGE='#ea580c', TEAL='#0d9488';
+  // volume grouped bar (log)
+  const vc=echarts.init(document.getElementById('vsVol'));
+  vc.setOption({grid:{left:8,right:16,top:30,bottom:8,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>(+v).toLocaleString('id')},
+    legend:{top:0,data:['KDM','Herman'],textStyle:{color:'#6b7280'}},
+    yAxis:{type:'category',data:['Artikel','Video','Komentar','Views'],axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#374151'}},
+    xAxis:{type:'log',axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280',formatter:v=>fmt(v)},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    series:[
+      {name:'KDM',type:'bar',data:[K.art,K.vid,K.com,K.views],itemStyle:{color:ORANGE,borderRadius:[0,3,3,0]}},
+      {name:'Herman',type:'bar',data:[H.art,H.vid,H.com,H.views],itemStyle:{color:TEAL,borderRadius:[0,3,3,0]}}]});
+  // sentiment net bar
+  const sc=echarts.init(document.getElementById('vsSen'));
+  sc.setOption({grid:{left:8,right:40,top:10,bottom:8,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>v+'%'},
+    yAxis:{type:'category',data:['KDM','Herman'],axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#374151'}},
+    xAxis:{type:'value',axisLabel:{formatter:'{value}%',color:'#6b7280'},axisLine:{lineStyle:{color:'#d1d5db'}},splitLine:{lineStyle:{color:'#eef1f4'}}},
+    series:[{type:'bar',data:[
+      {value:K.net,itemStyle:{color:K.net>=0?'#059669':'#dc2626',borderRadius:K.net>=0?[0,4,4,0]:[4,0,0,4]}},
+      {value:H.net,itemStyle:{color:H.net>=0?'#059669':'#dc2626',borderRadius:H.net>=0?[0,4,4,0]:[4,0,0,4]}}],
+      label:{show:true,position:'right',formatter:p=>(p.value>0?'+':'')+p.value+'%',color:'#374151',fontSize:12,fontWeight:'bold'}}]});
+  charts.push(vc,sc);
+  // table
+  const avg=(a,b)=>b?Math.round(a/b):0;
+  const rows=[
+    ['Artikel berita',K.art,H.art],['Video YouTube',K.vid,H.vid],
+    ['Total views YouTube',K.views,H.views],['Komentar',K.com,H.com],
+    ['Avg views / video',avg(K.views,K.vid),avg(H.views,H.vid)],
+    ['Avg komentar / video',avg(K.com,K.vid),avg(H.com,H.vid)],
+    ['Sentimen komentar (net)',K.net+'%',H.net+'%'],
+  ];
+  document.getElementById('vsTable').innerHTML=
+    '<thead><tr><th>Metrik</th><th class="num" style="color:#ea580c">KDM</th><th class="num" style="color:#0d9488">Herman</th></tr></thead><tbody>'+
+    rows.map(r=>`<tr><td>${r[0]}</td><td class="num">${typeof r[1]==='number'?r[1].toLocaleString('id'):r[1]}</td><td class="num">${typeof r[2]==='number'?r[2].toLocaleString('id'):r[2]}</td></tr>`).join('')+'</tbody>';
+  // topics
+  const tk=(TOPICS.comments?TOPICS.comments.topics:[]).slice(0,6);
+  document.getElementById('vsTopK').innerHTML=tk.map(t=>`<div class="cmt"><div class="top"><span class="who">${esc(t.label)}</span><span class="likes" style="color:#ea580c">${(t.share*100).toFixed(0)}%</span></div></div>`).join('');
+  const th=(HERMAN.topic?HERMAN.topic.topics:[]).slice(0,6);
+  document.getElementById('vsTopH').innerHTML=th.map(t=>`<div class="cmt"><div class="top"><span class="who">${esc(t.label)}</span><span class="likes">${(t.share*100).toFixed(0)}%</span></div></div>`).join('');
+  // insight
+  const ratioV=K.vid&&H.vid?Math.round(K.vid/H.vid):0, ratioC=H.com?Math.round(K.com/H.com):0;
+  document.getElementById('vsInsight').innerHTML=`<h3>💡 Insight</h3>
+    <div class="desc" style="font-size:13.5px;line-height:1.6;color:var(--ink)">
+    <b>Skala vs sentimen berbanding terbalik.</b> KDM mendominasi volume
+    (~${ratioV}× video, ~${ratioC}× komentar) sebagai figur publik/politik, tapi sentimennya
+    <b style="color:#dc2626">${K.net}%</b> (terpolarisasi). Herman Suryatman jauh lebih kecil
+    volumenya, namun sentimen komentarnya <b style="color:#059669">+${H.net}%</b> — apresiasi tulus
+    tanpa polarisasi politik. <br><br>
+    <b>Keterkaitan erat:</b> NER komentar Herman menempatkan <b>Dedi Mulyadi sebagai tokoh paling
+    sering disebut</b>, dan kata "kdm" muncul di komentar Herman — publik memandang keduanya satu paket
+    ("tangan kanan"). Topik keduanya beririsan di isu <b>sampah, budaya Sunda, dan kerja nyata</b>,
+    tapi Herman lebih bebas dari kontroversi politik yang menyertai KDM.</div>`;
+  setTimeout(()=>{vc.resize();sc.resize();},30);
 }
 
 function esc(s){return (s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
