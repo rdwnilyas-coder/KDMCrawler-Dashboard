@@ -383,6 +383,14 @@
       <div class="panel"><h3>🟠 Topik Komentar KDM</h3><div class="clist" id="vsTopK"></div></div>
       <div class="panel"><h3>🟢 Topik Komentar Herman</h3><div class="clist" id="vsTopH"></div></div>
     </div>
+    <div class="grid" id="vsCrossWrap">
+      <div class="panel"><h3>🎯 Cross-Isu (intensitas komentar)</h3>
+        <div class="desc">% komentar publik yang menyinggung tiap isu. Luar = lebih dominan.</div>
+        <div id="vsRadar" class="chart tall"></div></div>
+      <div class="panel"><h3>📈 Tren Temporal (ternormalisasi)</h3>
+        <div class="desc">Volume liputan (berita+video) per bulan, % dari total tiap subjek</div>
+        <div id="vsTemporal" class="chart tall"></div></div>
+    </div>
     <div class="panel" id="vsInsight" style="border-left:3px solid var(--accent)"></div>
   </section>
 </div>
@@ -435,12 +443,12 @@ function words(id,data,color){
       label:{show:true,position:'right',color:'#6b7280',fontSize:10}}]});
 }
 
-let TOPICS=null, SENT=null, STANCE=null, NER=null, ESENT=null, HERMAN=null;
+let TOPICS=null, SENT=null, STANCE=null, NER=null, ESENT=null, HERMAN=null, CROSS=null;
 const SEN_COL={pos:'#059669',neu:'#9ca3af',neg:'#dc2626'};
 const ST_COL={pro:'#059669',netral:'#9ca3af',kontra:'#dc2626'};
-Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner','entity_sentiment','herman'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
-.then(([ov,news,yt,com,topics,sent,stance,ner,esent,herman])=>{
-  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner; ESENT=esent; HERMAN=herman;
+Promise.all(['overview','news','youtube','comments','topics','sentiment','stance','ner','entity_sentiment','herman','cross_kh'].map(n=>fetch('data/'+n+'.json').then(r=>r.json()).catch(()=>null)))
+.then(([ov,news,yt,com,topics,sent,stance,ner,esent,herman,cross])=>{
+  TOPICS=topics; SENT=sent; STANCE=stance; NER=ner; ESENT=esent; HERMAN=herman; CROSS=cross;
   // header
   document.getElementById('subject').textContent=ov.subject;
   document.getElementById('meta').innerHTML=`Periode <b>${ov.date_range}</b> · diperbarui ${ov.generated_at} · kata kunci: <b>${ov.keyword}</b>`;
@@ -842,6 +850,32 @@ function renderVS(ov){
   document.getElementById('vsTopK').innerHTML=tk.map(t=>`<div class="cmt"><div class="top"><span class="who">${esc(t.label)}</span><span class="likes" style="color:#ea580c">${(t.share*100).toFixed(0)}%</span></div></div>`).join('');
   const th=(HERMAN.topic?HERMAN.topic.topics:[]).slice(0,6);
   document.getElementById('vsTopH').innerHTML=th.map(t=>`<div class="cmt"><div class="top"><span class="who">${esc(t.label)}</span><span class="likes">${(t.share*100).toFixed(0)}%</span></div></div>`).join('');
+  // cross-issue radar + temporal
+  if(CROSS&&CROSS.cross_issue){
+    document.getElementById('vsCrossWrap').style.display='';
+    const ci=CROSS.cross_issue, maxv=Math.max(...ci.map(c=>Math.max(c.kdm,c.herman)))*1.1;
+    const rc=echarts.init(document.getElementById('vsRadar'));
+    rc.setOption({tooltip:{},legend:{top:0,data:['KDM','Herman'],textStyle:{color:'#6b7280'}},
+      radar:{indicator:ci.map(c=>({name:c.issue,max:maxv})),radius:'62%',center:['50%','55%'],
+        axisName:{color:'#374151',fontSize:10},splitLine:{lineStyle:{color:'#e5e7eb'}},
+        splitArea:{areaStyle:{color:['#fff','#fafafa']}},axisLine:{lineStyle:{color:'#e5e7eb'}}},
+      series:[{type:'radar',data:[
+        {value:ci.map(c=>c.kdm),name:'KDM',itemStyle:{color:'#ea580c'},areaStyle:{opacity:.15}},
+        {value:ci.map(c=>c.herman),name:'Herman',itemStyle:{color:'#0d9488'},areaStyle:{opacity:.15}}]}]});
+    const t=CROSS.temporal, M=t.months;
+    const norm=(a)=>{const s=a.reduce((x,y)=>x+y,0)||1;return a.map(v=>+(v/s*100).toFixed(1));};
+    const kTot=M.map((_,i)=>t.kdm_news[i]+t.kdm_video[i]);
+    const hTot=M.map((_,i)=>t.herman_news[i]+t.herman_video[i]);
+    const tc=echarts.init(document.getElementById('vsTemporal'));
+    tc.setOption({grid:{left:8,right:18,top:30,bottom:8,containLabel:true},
+      tooltip:{trigger:'axis',valueFormatter:v=>v+'%'},legend:{top:0,textStyle:{color:'#6b7280'}},
+      xAxis:{type:'category',data:M,axisLine:{lineStyle:{color:'#d1d5db'}},axisLabel:{color:'#6b7280'}},
+      yAxis:{type:'value',axisLabel:{formatter:'{value}%',color:'#6b7280'},axisLine:{lineStyle:{color:'#d1d5db'}},splitLine:{lineStyle:{color:'#eef1f4'}}},
+      series:[
+        {name:'KDM',type:'line',smooth:true,data:norm(kTot),itemStyle:{color:'#ea580c'},lineStyle:{width:2.5}},
+        {name:'Herman',type:'line',smooth:true,data:norm(hTot),itemStyle:{color:'#0d9488'},lineStyle:{width:2.5}}]});
+    charts.push(rc,tc);
+  } else { document.getElementById('vsCrossWrap').style.display='none'; }
   // insight
   const ratioV=K.vid&&H.vid?Math.round(K.vid/H.vid):0, ratioC=H.com?Math.round(K.com/H.com):0;
   document.getElementById('vsInsight').innerHTML=`<h3>💡 Insight</h3>
@@ -854,7 +888,12 @@ function renderVS(ov){
     <b>Keterkaitan erat:</b> NER komentar Herman menempatkan <b>Dedi Mulyadi sebagai tokoh paling
     sering disebut</b>, dan kata "kdm" muncul di komentar Herman — publik memandang keduanya satu paket
     ("tangan kanan"). Topik keduanya beririsan di isu <b>sampah, budaya Sunda, dan kerja nyata</b>,
-    tapi Herman lebih bebas dari kontroversi politik yang menyertai KDM.</div>`;
+    tapi Herman lebih bebas dari kontroversi politik yang menyertai KDM. <br><br>
+    <b>Pembagian peran isu (cross-isu):</b> Herman lebih lekat dengan isu <b>teknokratis</b> —
+    ekonomi/investasi (bank bjb, Menkeu Purbaya), sampah/zero-waste, dan birokrasi/ASN.
+    KDM lebih dominan di isu <b>populis-politik</b> — pendidikan (Sekolah Maung), pajak kendaraan,
+    dan program sosial-kerakyatan. Keduanya beririsan di <b>budaya Sunda & infrastruktur</b>.
+    Pola ini konsisten dengan pembagian peran Gubernur (politik/visi) vs Sekda (eksekusi/teknis).</div>`;
   setTimeout(()=>{vc.resize();sc.resize();},30);
 }
 
